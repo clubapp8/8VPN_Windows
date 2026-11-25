@@ -34,6 +34,16 @@ for lang in ("en", "fa"):
     w.home._panel_open = True
     w.refresh()
     snap(w, f"{lang}-home-psiphon-panel")
+    # custom Tor bridges + the one-address share box (Home and Settings)
+    core.S.d.update(route="aether_tor", tor_bridges="custom", share_all=True, socks_share=True,
+                    tor_custom_bridges="obfs4 1.2.3.4:443 FINGERPRINT cert=abc iat-mode=0")
+    w.refresh()
+    snap(w, f"{lang}-home-tor-custom")
+    w.open_settings(); w.settings.open_section("lan"); snap(w, f"{lang}-settings-lan-share")
+    w.settings.open_section("tor"); snap(w, f"{lang}-settings-tor-custom")
+    w.settings.close_section()
+    core.S.d.update(route="aether_psiphon", tor_bridges="auto", share_all=False, socks_share=False)
+    w.refresh(); w.go_home()
     w.open_settings(); snap(w, f"{lang}-settings")
     assert w.settings.section is None, "Settings must open on the list of sections"
     for key, _t, _i in main.SECTIONS:

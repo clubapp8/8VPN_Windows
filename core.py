@@ -5,6 +5,9 @@
 Two modes:
   * VPN   - sing-box owns a Wintun adapter and routes the whole PC through Aether (needs admin).
   * Proxy - only Aether runs; the Windows system proxy is pointed at its HTTP port (no admin).
+
+Optional: a share gateway (gateway.py) - one address + port (SOCKS5 and HTTP together) that carries the final
+output of the connected mode for other devices.
 """
 import ctypes
 import json
@@ -20,8 +23,10 @@ from collections import deque
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from gateway import ShareGateway
+
 APP_NAME = "8VPN"
-VERSION = "4.8"
+VERSION = "5.8"
 TELEGRAM = "https://t.me/Clubapp8"
 
 NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW
@@ -72,7 +77,8 @@ DEFAULTS = {
     "protocol": "masque",        # wg | masque | gool | gool_classic | mim
     "psiphon_region": "",
     "psiphon_mode": "auto",      # auto | cdn
-    "tor_bridges": "auto",       # auto | always | never
+    "tor_bridges": "auto",       # auto | always | never | custom
+    "tor_custom_bridges": "",    # your own bridge lines, one per line (obfs4 / webtunnel / plain)
     "carrier": "h2",             # MASQUE transport: h2 | h3
     "scan": "turbo",
     "noize": "default",
@@ -101,6 +107,9 @@ DEFAULTS = {
     "socks_host": "0.0.0.0",
     "http_share": False,         # HTTP proxy listens on http_host instead of 127.0.0.1 only
     "http_host": "0.0.0.0",
+    "share_all": False,          # one address + port (SOCKS5 and HTTP together) carrying the final output of the current mode
+    "share_all_host": "0.0.0.0",
+    "share_all_port": 1830,
     "keep_awake": True,          # stop Windows from sleeping while connected
     "free_ports": True,          # on connect: close whatever already listens on our ports
     "autostart": False,
@@ -111,7 +120,7 @@ DEFAULTS = {
     "split_apps": "",            # comma separated program names, e.g. chrome.exe, telegram.exe
     "schema": 0,
 }
-SCHEMA = 4
+SCHEMA = 5
 
 PROTOCOLS = [
     ("wg", "WireGuard"),
@@ -203,7 +212,8 @@ class Settings:
         options are kept.
           3: connection tuning back to the Android 3.8 defaults (MASQUE over HTTP/2, 3 attempts, 3 failed
              pings, fresh scan after a drop)
-          4: TUN stack back to the new default (mixed) - gVisor was the old default and is slower"""
+          4: TUN stack back to the new default (mixed) - gVisor was the old default and is slower
+          5: mixed stays the TUN stack (system TCP + gVisor UDP: the fastest one on Windows)"""
         d = self.d
         old = d.get("schema", 0)
         if old < SCHEMA:
@@ -211,7 +221,7 @@ class Settings:
                 for k in ("protocol", "carrier", "quick_reconnect", "fresh_after_drop", "max_tries",
                           "retry_delay_ms", "ping_fails", "ping_interval"):
                     d[k] = DEFAULTS[k]
-            if old < 4:
+            if old < 5:
                 d["tun_stack"] = DEFAULTS["tun_stack"]
             d["schema"] = SCHEMA
             self.save()
@@ -249,6 +259,11 @@ class Settings:
             d["split_mode"] = "off"
         if d["tun_stack"] not in ("mixed", "system", "gvisor"):
             d["tun_stack"] = DEFAULTS["tun_stack"]
+        if d["tor_bridges"] not in ("auto", "always", "never", "custom"):
+            d["tor_bridges"] = "auto"
+        taken = (d["socks_port"], d["http_port"], TOR_PORT, PSIPHON_PORT)
+        if not (1024 <= d["share_all_port"] <= 65535) or d["share_all_port"] in taken:
+            d["share_all_port"] = next(p for p in (1830, 1831, 1832, 1833) if p not in taken)
 
     def tries(self): return max(1, min(999, self.max_tries))
     def retry_s(self): return max(0.1, min(60.0, self.retry_delay_ms / 1000))
@@ -314,13 +329,47 @@ def http_bind(s) -> str:
 
 
 def http_on(s) -> bool:
-    """The Aether HTTP proxy runs when asked for, and always in Proxy mode with the system proxy."""
-    return bool(s.http_enabled or (s.mode == "proxy" and s.system_proxy))
+    """The Aether HTTP proxy runs when it is switched on for this PC, for other devices, or both (two independent
+    switches), and always in Proxy mode with the system proxy."""
+    return bool(s.http_enabled or s.http_share or (s.mode == "proxy" and s.system_proxy))
 
 
 def local_of(bind: str) -> str:
     """Address this app uses to reach a listener that is bound to `bind`."""
     return "127.0.0.1" if bind in ("0.0.0.0", "") else bind
+
+
+# ------------------------------------------------------------ custom Tor bridges
+_TOR_SUPPORTED = ("obfs4", "webtunnel")   # the app ships lyrebird only
+
+
+def tor_lines(text: str):
+    """One bridge per line; blank lines and # comments dropped, a leading "Bridge " removed."""
+    out = []
+    for ln in (text or "").splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        ln = re.sub(r"^bridge\s+", "", ln, flags=re.I).strip()
+        if ln:
+            out.append(ln)
+    return out
+
+
+def tor_transport(line: str) -> str:
+    """The transport word of a line, or "" for a plain bridge (IP:port ...)."""
+    first = line.split(" ", 1)[0].lower()
+    return first if first and not first[0].isdigit() and first[0] != "[" else ""
+
+
+def tor_usable(line: str) -> bool:
+    t = tor_transport(line)
+    return t == "" or t in _TOR_SUPPORTED
+
+
+def tor_file_text(text: str) -> str:
+    """The file content in torrc shape (each line starts with "Bridge "), only usable lines."""
+    return "\n".join("Bridge " + ln for ln in tor_lines(text) if tor_usable(ln))
 
 
 # Set at the start of a session, so probes and sing-box talk to the address the core really bound.
@@ -342,6 +391,40 @@ def lan_addresses():
     except Exception:
         pass
     return out
+
+
+def share_entries(s):
+    """Everything another device (or this PC) can connect to, as (kind, where, "ip:port") rows.
+    kind: all (SOCKS5 + HTTP on the one shared port) | socks | http. where: local | lan name."""
+    rows = []
+    exitp = exit_port(s)
+
+    def hosts(host):
+        host = clean_host(host)
+        return [(n, ip) for n, ip in lan_addresses()] if host == "0.0.0.0" else [("LAN", host)]
+
+    if s.share_all:
+        h = clean_host(s.share_all_host)
+        if h in ("0.0.0.0", "127.0.0.1"):
+            rows.append(("all", "local", f"127.0.0.1:{s.share_all_port}"))
+        for n, ip in hosts(s.share_all_host):
+            if ip != "127.0.0.1":
+                rows.append(("all", n, f"{ip}:{s.share_all_port}"))
+    socks_local_ok = (not s.socks_share) or clean_host(s.socks_host) == "0.0.0.0"
+    http_local_ok = http_on(s) and ((not s.http_share) or clean_host(s.http_host) == "0.0.0.0")
+    if socks_local_ok:
+        rows.append(("socks", "local", f"127.0.0.1:{exitp}"))
+    if http_local_ok:
+        rows.append(("http", "local", f"127.0.0.1:{s.http_port}"))
+    if s.socks_share:
+        for n, ip in hosts(s.socks_host):
+            if ip != "127.0.0.1":
+                rows.append(("socks", n, f"{ip}:{exitp}"))
+    if s.http_share:
+        for n, ip in hosts(s.http_host):
+            if ip != "127.0.0.1":
+                rows.append(("http", n, f"{ip}:{s.http_port}"))
+    return rows
 
 
 def port_open(port: int) -> bool:
@@ -829,6 +912,18 @@ def aether_args(s, fresh: bool, psi_slot: int = 0):
             a.append("--tor-bridges")
         elif s.tor_bridges == "never":
             a.append("--no-tor-bridges")
+        elif s.tor_bridges == "custom":
+            # The user's own bridge lines go to a file in torrc shape; empty or unusable text means automatic.
+            txt = tor_file_text(s.tor_custom_bridges)
+            if txt:
+                try:
+                    os.makedirs(os.path.join(DATA_DIR, "aether"), exist_ok=True)
+                    f = os.path.join(DATA_DIR, "aether", "tor-bridges.txt")
+                    with open(f, "w", encoding="utf-8") as fh:
+                        fh.write(txt + "\n")
+                    a += ["--tor-bridge-file", f]
+                except OSError:
+                    pass
     if s.perf != "auto":
         a += ["--perf", s.perf]
     a += split_args(s.extra_args)
@@ -906,7 +1001,6 @@ class Controller(QObject):
     traffic = pyqtSignal(float, float)  # download B/s, upload B/s
     exit_info = pyqtSignal(str)
     speed = pyqtSignal(float)           # link speed B/s, -1 = measuring / unknown
-    paused = pyqtSignal(bool)           # VPN adapter switched off while the core keeps running
 
     def __init__(self):
         super().__init__()
@@ -922,8 +1016,8 @@ class Controller(QObject):
         self._aether = None
         self._singbox = None
         self._sb_started = False
-        self.is_paused = False           # Pause button: adapter off, core still running
-        self._tun_busy = False           # the adapter is being paused / resumed / recycled: not a crash
+        self._tun_busy = False           # the adapter is being recycled: not a crash
+        self._gateway = ShareGateway(lambda m: self._log(m))   # one shared address + port (optional)
         self._cur = None                 # settings of the running session
         self._stalls = 0                 # TUN data stalls seen in this session
         self._psiphon_ready = False
@@ -960,7 +1054,12 @@ class Controller(QObject):
             # Close the TUN and the core right away: probes blocked on the local SOCKS port then fail
             # at once instead of waiting for their timeouts.
             gen = self._gen
-            threading.Thread(target=lambda: self._gen == gen and self._teardown(), daemon=True).start()
+
+            def _down():
+                if self._gen == gen:
+                    self._teardown()
+                    self._gateway.stop()
+            threading.Thread(target=_down, daemon=True).start()
 
     def cfg(self):
         s = self._cur
@@ -978,6 +1077,7 @@ class Controller(QObject):
         self._stop.set()
         t = self._thread
         self._teardown()
+        self._gateway.stop()
         if t and t.is_alive():
             t.join(1.0)   # the worker only has to notice the stop flag; the cores are already gone
 
@@ -1006,13 +1106,13 @@ class Controller(QObject):
         failures = cycle = 0
         ever_up = force_fresh = False
         self._psi_slot = 0
-        self.is_paused = False
         self._net_changed.clear()
         watch_stop = threading.Event()
         threading.Thread(target=self._watch_net, args=(watch_stop,), daemon=True, name="8vpn-netwatch").start()
         if s.keep_awake:
             threading.Thread(target=self._keep_awake, args=(watch_stop,), daemon=True, name="8vpn-awake").start()
         try:
+            self._start_gateway(s)
             while not self._stop.is_set():
                 attempt = failures + 1
                 self._set("reconnecting" if ever_up else "connecting", attempt, tries)
@@ -1109,14 +1209,28 @@ class Controller(QObject):
             watch_stop.set()
             self._set("stopping") if self._stop.is_set() else None
             self._teardown()
-            if self.is_paused:
-                self.is_paused = False
-                self.paused.emit(False)
+            self._gateway.stop()
             self.ping.emit(-1)
             self.traffic.emit(0, 0)
             self.exit_info.emit("")
             self.speed.emit(-1)
             self._set("idle")
+
+    def _start_gateway(self, s):
+        """One address + port that shares the final output of the current mode (Aether / Psiphon / Tor)."""
+        self._gateway.stop()
+        if not s.share_all:
+            return
+        port = s.share_all_port
+        if port_open(port) and s.free_ports:
+            free_port(port, self._log)
+        if port_open(port):
+            self._log(f"shared port {port} is in use")
+            raise Fatal("share_all_failed")
+        err = self._gateway.start(clean_host(s.share_all_host), port, LOCAL["host"], exit_port(s))
+        if err:
+            self._log(f"could not open the shared port: {err}")
+            raise Fatal("share_all_failed")
 
     def _bring_up(self, s, fresh: bool) -> bool:
         if not IS_WIN:
@@ -1154,8 +1268,6 @@ class Controller(QObject):
 
         # 2) mode specific part
         if vpn:
-            if self.is_paused:   # paused by the user: the core comes back, the adapter stays off
-                return True
             return self._start_tun(s) and self._after_tun(s)
         if s.system_proxy:
             addr = f"{local_of(http_bind(s))}:{s.http_port}"
@@ -1307,52 +1419,12 @@ class Controller(QObject):
         if p is not None:
             self._kill(p)
 
-    # ---- pause / resume (the Android Stop / Start buttons) and TUN recycling
-    def pause_vpn(self):
-        if self.phase == "connected" and self._cur is not None and self._cur.mode == "vpn" and not self.is_paused:
-            threading.Thread(target=self._do_pause, daemon=True).start()
-
-    def resume_vpn(self):
-        if self.is_paused and self.phase == "connected":
-            threading.Thread(target=self._do_resume, daemon=True).start()
-
-    def _do_pause(self):
-        with self._td_lock:
-            if self.is_paused or self._stop.is_set():
-                return
-            self.is_paused = True
-            self._tun_busy = True
-            try:
-                self._stop_tun()
-            finally:
-                self._tun_busy = False
-        self._rx_bps = 0.0
-        self.traffic.emit(0, 0)
-        self._log("VPN paused: adapter off, core still running")
-        self.paused.emit(True)
-
-    def _do_resume(self):
-        with self._td_lock:
-            if not self.is_paused or self._stop.is_set() or self._cur is None:
-                return
-            self._tun_busy = True
-            try:
-                ok = self._start_tun(self._cur) and self._after_tun(self._cur)
-            finally:
-                self._tun_busy = False
-        if ok:
-            self._last_rx_at = time.time()
-            self.is_paused = False
-            self._log("VPN resumed")
-            self.paused.emit(False)
-        else:
-            self._log("Could not bring the VPN back, try again")
-
+    # ---- TUN recycling
     def _recycle_tun(self) -> bool:
         """Restarts sing-box on a fresh adapter; the core and its gateway stay. Clears stuck sessions without
         a slow reconnect."""
         with self._td_lock:
-            if self.is_paused or self._stop.is_set() or self._cur is None or self.phase != "connected":
+            if self._stop.is_set() or self._cur is None or self.phase != "connected":
                 return False
             self._stalls += 1
             if self._stalls >= 2 and self._cur.tun_stack != "gvisor":
@@ -1478,7 +1550,7 @@ class Controller(QObject):
                 # stack, refused QUIC), and that must not make the monitor think the link is alive.
                 if rx >= 3000:
                     self._last_rx_at = now
-                if rx > 0 or self.is_paused or self._tun_busy or self.phase != "connected":
+                if rx > 0 or self._tun_busy or self.phase != "connected":
                     stall_since, stall_ticks, stall_tx = 0.0, 0, 0.0
                 elif tx > 0:
                     stall_since = stall_since or now
@@ -1513,7 +1585,7 @@ class Controller(QObject):
             return ""
         if self._aether is None or self._aether.poll() is not None:
             return "r_core"
-        if s.mode == "vpn" and not self.is_paused and not self._tun_busy \
+        if s.mode == "vpn" and not self._tun_busy \
                 and (self._singbox is None or self._singbox.poll() is not None):
             return "r_tun"
         return ""

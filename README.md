@@ -33,7 +33,9 @@ Ready-made builds (installer and portable) are in the **[Releases](../../release
 - **Routes**: Aether, Aether → Psiphon, Aether → Tor, Psiphon only, Psiphon → Aether, Tor only, Tor → Aether
 - **Protocols**: WireGuard, MASQUE (HTTP/3 or HTTP/2), WARP-in-MASQUE (Gool), WARP-in-WARP (Gool classic), MASQUE-in-MASQUE
 - **Psiphon**: choose the exit country from a list with flags; Auto or CDN mode. The flag of the exit country is shown next to the connection status.
-- **Tor**: bridges Auto / Always / Never
+- **Tor**: bridges Auto / Always / Never / **Custom** (paste your own obfs4 / webtunnel / plain bridge lines, or get them from the Telegram bot)
+- **Share on one address**: one address + one port (SOCKS5 and HTTP together) that carries the final output of the connected mode (Aether, Psiphon or Tor) to other devices; a coloured box shows every address you can connect to
+- **TUN stack**: `mixed` (system TCP + gVisor UDP) by default, the fastest on Windows
 - Live **ping**, ping test, **exit IP and country**, download and upload rate, link speed test, connection timer
 - **Smart reconnect** when the core stops or pings fail, and a **Rescan** button to find a new gateway
 - Frees a busy port automatically when connecting (can be turned off in Settings)
@@ -49,7 +51,7 @@ Proxy mode : Windows system proxy → Aether HTTP 127.0.0.1:1822 → Internet
 ### Cores and components
 | Component | What it does here | Link |
 |---|---|---|
-| **Aether** (v2.3.0) | The main core: WARP / WireGuard / MASQUE tunnels, SOCKS5 and HTTP proxy, Psiphon and Tor routes | https://github.com/CluvexStudio/Aether |
+| **Aether** (v2.4.0) | The main core: WARP / WireGuard / MASQUE tunnels, SOCKS5 and HTTP proxy, Psiphon and Tor routes | https://github.com/CluvexStudio/Aether |
 | **sing-box** (1.13.21) | Creates the TUN device and routes all system traffic into Aether in VPN mode | https://github.com/SagerNet/sing-box |
 | **Wintun** (0.14.1) | Virtual network adapter driver for Windows | https://www.wintun.net |
 | **Psiphon tunnel core** | Circumvention transport used by the Psiphon routes | https://github.com/Psiphon-Labs/psiphon-tunnel-core |
@@ -93,7 +95,9 @@ Proxy mode : Windows system proxy → Aether HTTP 127.0.0.1:1822 → Internet
 - **مسیرها**: Aether، Aether → Psiphon، Aether → Tor، فقط Psiphon، Psiphon → Aether، فقط Tor، Tor → Aether
 - **پروتکل‌ها**: WireGuard، MASQUE (با HTTP/3 یا HTTP/2)، WARP-in-MASQUE (Gool)، WARP-in-WARP (Gool classic)، MASQUE-in-MASQUE
 - **سایفون**: انتخاب کشور خروجی از یک فهرست پرچم‌دار، حالت Auto یا CDN. پرچم کشور خروجی کنار وضعیت اتصال نمایش داده می‌شود.
-- **تور**: پل‌ها (Bridges) در حالت Auto / Always / Never
+- **تور**: پل‌ها (Bridges) در حالت Auto / Always / Never / **سفارشی** (بریج‌های obfs4 / webtunnel / ساده را بچسبانید یا از ربات تلگرام بگیرید)
+- **اشتراک روی یک آدرس**: یک آدرس و یک پورت (SOCKS5 و HTTP با هم) که خروجی نهایی حالت متصل‌شده (Aether، Psiphon یا Tor) را به دستگاه‌های دیگر می‌دهد؛ یک کادر رنگی همه‌ی آدرس‌های قابل اتصال را نشان می‌دهد
+- **استک TUN**: به‌طور پیش‌فرض `mixed` (TCP سیستم + UDP گی‌ویزور)، سریع‌ترین حالت در ویندوز
 - **پینگ** زنده، تست پینگ، **آی‌پی و کشور خروجی**، سرعت دانلود و آپلود، تست سرعت لینک، زمان‌سنج اتصال
 - **اتصال مجدد هوشمند** هنگام از کار افتادن هسته یا بالا رفتن پینگ، و دکمه‌ی **Rescan** برای پیدا کردن گیت‌وی جدید
 - آزاد کردن خودکار پورت اشغال‌شده هنگام اتصال (در تنظیمات قابل خاموش کردن است)
@@ -109,7 +113,7 @@ Proxy mode : Windows system proxy → Aether HTTP 127.0.0.1:1822 → Internet
 ### هسته‌ها و اجزای استفاده‌شده
 | جزء | نقش در برنامه | لینک |
 |---|---|---|
-| **Aether** (نسخه‌ی 2.3.0) | هسته‌ی اصلی: تونل‌های WARP / WireGuard / MASQUE، پروکسی SOCKS5 و HTTP، مسیرهای Psiphon و Tor | https://github.com/CluvexStudio/Aether |
+| **Aether** (نسخه‌ی 2.4.0) | هسته‌ی اصلی: تونل‌های WARP / WireGuard / MASQUE، پروکسی SOCKS5 و HTTP، مسیرهای Psiphon و Tor | https://github.com/CluvexStudio/Aether |
 | **sing-box** (نسخه‌ی 1.13.21) | در حالت VPN دستگاه TUN را می‌سازد و کل ترافیک سیستم را به Aether می‌فرستد | https://github.com/SagerNet/sing-box |
 | **Wintun** (نسخه‌ی 0.14.1) | درایور کارت شبکه‌ی مجازی ویندوز | https://www.wintun.net |
 | **Psiphon tunnel core** | ترنسپورت دورزدن فیلترینگ برای مسیرهای Psiphon | https://github.com/Psiphon-Labs/psiphon-tunnel-core |

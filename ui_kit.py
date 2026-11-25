@@ -95,6 +95,11 @@ def qss():
     QLineEdit[bad="true"] {{ border: 1px solid {p['danger']}; }}
     QLineEdit:disabled, QSpinBox:disabled {{ color: {p['sub']}; }}
     QTextEdit {{ background: transparent; border: none; font-family: Consolas, monospace; font-size: 12px; }}
+    QPlainTextEdit {{ background: {p['card2']}; border: 1px solid transparent; border-radius: 14px; padding: 8px 12px;
+        font-family: Consolas, monospace; font-size: 12px; selection-background-color: {p['primary']}; selection-color: {p['onp']}; }}
+    QPlainTextEdit:focus {{ border: 1px solid {p['primary']}; }}
+    QPlainTextEdit[bad="true"] {{ border: 1px solid {p['danger']}; }}
+    QPlainTextEdit:disabled {{ color: {p['sub']}; }}
     QScrollArea {{ border: none; }}
     QScrollBar:vertical {{ width: 8px; background: transparent; margin: 2px; }}
     QScrollBar::handle:vertical {{ background: {p['line']}; border-radius: 4px; min-height: 36px; }}
@@ -545,7 +550,7 @@ def _repolish(w):
 
 
 class Card(QFrame):
-    """Rounded panel painted with anti-aliasing. kind: card | banner | pill | seg."""
+    """Rounded panel painted with anti-aliasing. kind: card | banner | box | pill | seg."""
 
     def __init__(self, kind="card"):
         super().__init__()
@@ -564,6 +569,10 @@ class Card(QFrame):
         elif k == "banner":
             p.setBrush(alpha(c["primary"], 0.10))
             p.drawRoundedRect(r, 16, 16)
+        elif k == "box":   # the eye-catching coloured box with every address and port
+            p.setPen(QPen(alpha(c["primary"], 0.55), 1.2))
+            p.setBrush(alpha(c["primary"], 0.16))
+            p.drawRoundedRect(r, 18, 18)
         elif k == "seg":
             p.setBrush(QColor(c["card2"]))
             p.drawRoundedRect(r, 16, 16)
