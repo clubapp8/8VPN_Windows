@@ -10,15 +10,15 @@ import time
 from PyQt6.QtCore import QPoint, QRectF, QSize, Qt, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QDesktopServices, QFont, QIcon, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QPlainTextEdit, QPushButton,
-                             QScrollArea, QSpinBox, QStackedWidget, QSystemTrayIcon, QTextEdit, QVBoxLayout, QWidget)
+                             QScrollArea, QSizePolicy, QSpinBox, QStackedWidget, QSystemTrayIcon, QTextEdit, QVBoxLayout, QWidget)
 
 import core
 from core import S, TELEGRAM, VERSION, Controller
 from ui_kit import (L, Btn, Card, Chips, ClickCard, ConnectButton, Dot, Icon, IconButton, LogoMark, SectionTitle,
                     Segmented, Sheet, SwitchRow, Tile, flag_pixmap, fmt_rate, paint_icon, pal, qss, rtl)
 
-GITHUB = "https://github.com/Mrmmd2004/8VPN_Windows"
-GITHUB_ANDROID = "https://github.com/Mrmmd2004/8vpn"
+GITHUB = "https://github.com/clubapp8/8VPN_Windows"
+GITHUB_ANDROID = "https://github.com/clubapp8/8vpn"
 
 REGIONS = {
     "AT": ("Austria", "اتریش"), "AU": ("Australia", "استرالیا"), "BE": ("Belgium", "بلژیک"),
@@ -263,10 +263,12 @@ class AddrBox(Card):
 
     def __init__(self):
         super().__init__("box")
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         v = QVBoxLayout(self)
         v.setContentsMargins(16, 14, 16, 14)
         v.setSpacing(6)
         self.title = QLabel()
+        self.title.setWordWrap(True)
         self.title.setStyleSheet(f"color:{pal()['primary']};font-size:13px;font-weight:700;")
         self.state = label("", "hint", True)
         self.rows = QVBoxLayout()
@@ -281,16 +283,21 @@ class AddrBox(Card):
         rows = core.share_entries(cf)
         for kind, where, addr in rows:
             w = QWidget()
-            h = QHBoxLayout(w)
-            h.setContentsMargins(0, 0, 0, 0)
-            h.setSpacing(10)
-            name = QLabel(entry_label(kind, where))
-            name.setObjectName("sub")
+            w.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+            h = QVBoxLayout(w)           # name above, address below: nothing here is wider than the box
+            h.setContentsMargins(0, 2, 0, 2)
+            h.setSpacing(0)
+            name = label(entry_label(kind, where), "sub", True)
+            name.setMinimumWidth(0)
+            name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             val = QLabel(addr)
             val.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+            val.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            val.setMinimumWidth(0)
+            val.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             val.setStyleSheet(f"font-family:Consolas,monospace;font-size:13px;font-weight:600;color:{pal()['text']};")
-            h.addWidget(name, 1)
+            h.addWidget(name)
             h.addWidget(val)
             self.rows.addWidget(w)
         sharing = cf.socks_share or cf.http_share or cf.share_all
@@ -401,6 +408,7 @@ class HomePage(QWidget):
         root.addLayout(top)
 
         inner = QWidget()
+        inner.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)   # content never widens the page
         sc = QScrollArea()
         sc.setWidgetResizable(True)
         sc.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -456,8 +464,7 @@ class HomePage(QWidget):
             self.st[key] = (lab, val)
         v.addWidget(self.stats)
 
-        self.proxy_card = AddrBox()
-        v.addWidget(self.proxy_card)
+        self.proxy_card = AddrBox()   # added at the bottom of the page, under the log preview
 
         # actions (only while connected)
         self.actions = QWidget()
@@ -500,6 +507,7 @@ class HomePage(QWidget):
         self.loglbl.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         ll.addWidget(self.loglbl)
         v.addWidget(self.logbtn)
+        v.addWidget(self.proxy_card)
         v.addStretch()
 
         ctl = self.ctl
@@ -812,6 +820,7 @@ class SettingsPage(QWidget):
 
         running = self.ctl.phase != "idle"   # options stay editable; a running connection keeps its own copy
         body = QWidget()
+        body.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)   # content never widens the page
         v = QVBoxLayout(body)
         v.setContentsMargins(0, 0, 10, 10)
         v.setSpacing(8)
@@ -1142,6 +1151,7 @@ class AboutPage(QWidget):
         c = pal()
         self.root.addLayout(page_header(L("about"), self.win.open_settings))
         body = QWidget()
+        body.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         v = QVBoxLayout(body)
         v.setContentsMargins(0, 0, 10, 10)
         v.setSpacing(14)
@@ -1444,7 +1454,7 @@ def main():
         return 0
     if core.IS_WIN:
         try:
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Mrmmd2004.8VPN")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("clubapp8.8VPN")
         except Exception:
             pass
     app = QApplication(sys.argv)

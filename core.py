@@ -748,7 +748,7 @@ def socks_download(port: int, host: str, path: str, max_bytes: int, budget: floa
 
 
 # ------------------------------------------------------------ updates
-RELEASES_API = "https://api.github.com/repos/Mrmmd2004/8VPN_Windows/releases/latest"
+RELEASES_API = "https://api.github.com/repos/clubapp8/8VPN_Windows/releases/latest"
 
 
 def _ver_parts(v: str):
@@ -777,7 +777,7 @@ def check_update():
     with urllib.request.urlopen(req, timeout=15) as r:
         j = json.load(r)
     tag = j["tag_name"]
-    page = j.get("html_url") or "https://github.com/Mrmmd2004/8VPN_Windows/releases/latest"
+    page = j.get("html_url") or "https://github.com/clubapp8/8VPN_Windows/releases/latest"
     want = "portable" if CORE_DIR == _c2 else "setup"   # single-file build vs installed / zip build
     url = page
     for a in j.get("assets", []):

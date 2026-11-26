@@ -6,7 +6,7 @@
 
 English · [فارسی](#-فارسی)
 
-[Releases](../../releases) · [Android version](https://github.com/Mrmmd2004/8vpn) · [Telegram](https://t.me/Clubapp8)
+[Releases](../../releases) · [Android version](https://github.com/clubapp8/8vpn) · [Telegram](https://t.me/Clubapp8)
 
 </div>
 
@@ -21,7 +21,7 @@ English · [فارسی](#-فارسی)
 </p>
 
 ### About
-8 VPN is the Windows version of the [8vpn Android app](https://github.com/Mrmmd2004/8vpn). It wraps the **Aether** core in a clean, compact interface with one big connect button, live statistics and every route and protocol the core offers.
+8 VPN is the Windows version of the [8vpn Android app](https://github.com/clubapp8/8vpn). It wraps the **Aether** core in a clean, compact interface with one big connect button, live statistics and every route and protocol the core offers.
 
 ### Download
 Ready-made builds (installer and portable) are in the **[Releases](../../releases)** section. Download, run, connect. Nothing else is needed.
@@ -64,7 +64,7 @@ Proxy mode : Windows system proxy → Aether HTTP 127.0.0.1:1822 → Internet
 - Administrator permission for VPN mode (the program asks for it when it starts)
 
 ### Links
-- Android version: https://github.com/Mrmmd2004/8vpn
+- Android version: https://github.com/clubapp8/8vpn
 - Telegram channel: https://t.me/Clubapp8
 
 ### License and credits
@@ -83,7 +83,7 @@ Proxy mode : Windows system proxy → Aether HTTP 127.0.0.1:1822 → Internet
 </p>
 
 ### درباره‌ی برنامه
-۸ وی‌پی‌ان نسخه‌ی ویندوز [برنامه‌ی اندروید 8vpn](https://github.com/Mrmmd2004/8vpn) است. هسته‌ی **Aether** را در یک رابط ساده و جمع‌وجور با یک دکمه‌ی بزرگ اتصال، آمار زنده و همه‌ی مسیرها و پروتکل‌های هسته در اختیار شما می‌گذارد.
+۸ وی‌پی‌ان نسخه‌ی ویندوز [برنامه‌ی اندروید 8vpn](https://github.com/clubapp8/8vpn) است. هسته‌ی **Aether** را در یک رابط ساده و جمع‌وجور با یک دکمه‌ی بزرگ اتصال، آمار زنده و همه‌ی مسیرها و پروتکل‌های هسته در اختیار شما می‌گذارد.
 
 ### دانلود
 نسخه‌های آماده (نصب‌کننده و پرتابل) در بخش **[Releases](../../releases)** هستند. دانلود کنید، اجرا کنید و وصل شوید. به هیچ کار دیگری نیاز نیست.
@@ -126,7 +126,7 @@ Proxy mode : Windows system proxy → Aether HTTP 127.0.0.1:1822 → Internet
 - دسترسی ادمین برای حالت VPN (برنامه هنگام اجرا آن را درخواست می‌کند)
 
 ### لینک‌ها
-- نسخه‌ی اندروید: https://github.com/Mrmmd2004/8vpn
+- نسخه‌ی اندروید: https://github.com/clubapp8/8vpn
 - کانال تلگرام: https://t.me/Clubapp8
 
 ### مجوز و سپاس
