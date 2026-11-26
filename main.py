@@ -483,7 +483,6 @@ class HomePage(QWidget):
         v.addWidget(self.actions)
 
         # connection setup card: mode, core family, collapsible options
-        self.seg_mode = Segmented(self.set_mode)
         self.seg_fam = Segmented(self.set_family)
         self.setup, sv = card((12, 12, 12, 12), 10)
         self.summary = SummaryRow(self.toggle_panel)
@@ -492,7 +491,7 @@ class HomePage(QWidget):
         self.panel_l = QVBoxLayout(self.panel)
         self.panel_l.setContentsMargins(2, 0, 2, 0)
         self.panel_l.setSpacing(12)
-        for w in (self.seg_mode, self.seg_fam, self.summary, self.hint, self.panel):
+        for w in (self.seg_fam, self.summary, self.hint, self.panel):
             sv.addWidget(w)
         v.addSpacing(4)
         v.addWidget(self.setup)
@@ -546,7 +545,6 @@ class HomePage(QWidget):
         self.b_rescan.setText(L("rescan"))
         for key, (lab, _) in self.st.items():
             lab.setText(L(key))
-        self.seg_mode.set_items([("vpn", L("vpn")), ("proxy", L("proxy"))], S.mode, self.idle)
         fam = core.route_of(S).family
         self.seg_fam.set_items([("aether", L("core_aether")), ("psiphon", L("core_psiphon")), ("tor", L("core_tor"))], fam, self.idle)
         self.build_panel()
@@ -682,9 +680,6 @@ class HomePage(QWidget):
             S.set(**kw)
             self.refresh()
             self.win.mark_dirty("settings")
-
-    def set_mode(self, mode):
-        self.put(mode=mode)
 
     def set_family(self, fam):
         if core.route_of(S).family != fam:

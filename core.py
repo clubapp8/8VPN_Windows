@@ -26,7 +26,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from gateway import ShareGateway
 
 APP_NAME = "8VPN"
-VERSION = "5.8"
+VERSION = "7.8"
 TELEGRAM = "https://t.me/Clubapp8"
 
 NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW
